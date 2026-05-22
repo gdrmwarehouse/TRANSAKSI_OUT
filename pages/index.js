@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { Html5Qrcode } from "html5-qrcode";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -7,15 +8,11 @@ const supabase = createClient(
 );
 
 export default function Home() {
-  const today = new Date();
-
   const [tanggal, setTanggal] = useState(
-    today.toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0]
   );
 
-  const [jam, setJam] = useState(
-    today.toLocaleTimeString("id-ID")
-  );
+  const [jam, setJam] = useState(formatTime(new Date()));
 
   const [sku, setSku] = useState("");
   const [ringkasan, setRingkasan] = useState("");
@@ -29,14 +26,24 @@ export default function Home() {
   const [qtyKg, setQtyKg] = useState("");
 
   const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setJam(new Date().toLocaleTimeString("id-ID"));
+      setJam(formatTime(new Date()));
     }, 1000);
 
     return () => clearInterval(interval);
   }, []);
+
+  function formatTime(date) {
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    const ss = String(date.getSeconds()).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+  }
 
   async function lookupSKU(value) {
     if (!value) return;
@@ -54,17 +61,61 @@ export default function Home() {
     }
   }
 
+  async function startScanner() {
+    setScannerOpen(true);
+
+    const qr = new Html5Qrcode("reader");
+
+    try {
+      await qr.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+          setSku(decodedText);
+          await lookupSKU(decodedText);
+          await qr.stop();
+          setScannerOpen(false);
+        }
+      );
+    } catch (err) {
+      setErrorMsg("Kamera gagal dibuka");
+      setScannerOpen(false);
+    }
+  }
+
   function formatNoPalet(value) {
     const parts = value.trim().split(/\s+/);
+
     if (parts.length === 2) {
       return `${parts[0]} - ${parts[1]}`;
     }
+
     return value;
   }
 
   async function handleSubmit() {
+    setErrorMsg("");
+
     if (!sku || !qtyKemasan || !qtyKg) {
-      alert("Field wajib belum lengkap");
+      setErrorMsg("Field wajib belum lengkap");
+      return;
+    }
+
+    if (!Number.isInteger(Number(qtyKemasan))) {
+      setErrorMsg("Qty Kemasan harus bilangan bulat");
+      return;
+    }
+
+    if (isNaN(Number(qtyKg.replace(",", ".")))) {
+      setErrorMsg("Qty KG harus angka");
+      return;
+    }
+
+    if (
+      beratPerKemasan &&
+      isNaN(Number(beratPerKemasan.replace(",", ".")))
+    ) {
+      setErrorMsg("Berat per Kemasan harus angka");
       return;
     }
 
@@ -72,6 +123,8 @@ export default function Home() {
       plant === "LAINNYA" ? plantManual : plant;
 
     const finalPalet = formatNoPalet(noPalet);
+
+    setLoading(true);
 
     const { error } = await supabase
       .from("trx_rm")
@@ -94,8 +147,10 @@ export default function Home() {
         }
       ]);
 
+    setLoading(false);
+
     if (error) {
-      alert(error.message);
+      setErrorMsg(error.message);
       return;
     }
 
@@ -119,81 +174,98 @@ export default function Home() {
 
   return (
     <div className="container">
-      {success && (
-        <div className="success">BERHASIL</div>
-      )}
+      <div className={`card ${loading ? "loading" : ""}`}>
+        {success && <div className="success">BERHASIL</div>}
+        {errorMsg && <div className="error">{errorMsg}</div>}
 
-      <h2>INPUT TRANSAKSI RM OUT</h2>
+        <div className="title">INPUT TRANSAKSI RM OUT</div>
 
-      <label>Tanggal</label>
-      <input
-        type="date"
-        value={tanggal}
-        onChange={(e) => setTanggal(e.target.value)}
-      />
-
-      <label>Jam</label>
-      <input type="text" value={jam} readOnly />
-
-      <label>SKU QR</label>
-      <input
-        value={sku}
-        onChange={(e) => setSku(e.target.value)}
-        onBlur={(e) => lookupSKU(e.target.value)}
-      />
-
-      <label>Ringkasan RM</label>
-      <div className="rm-box">{ringkasan}</div>
-
-      <label>Plant Tujuan</label>
-      <select
-        value={plant}
-        onChange={(e) => setPlant(e.target.value)}
-      >
-        <option>1111</option>
-        <option>1112</option>
-        <option>1113</option>
-        <option>LAINNYA</option>
-      </select>
-
-      {plant === "LAINNYA" && (
+        <label>Tanggal</label>
         <input
-          placeholder="Input Plant"
-          value={plantManual}
-          onChange={(e) => setPlantManual(e.target.value)}
+          type="date"
+          value={tanggal}
+          onChange={(e) => setTanggal(e.target.value)}
         />
-      )}
 
-      <label>No Palet</label>
-      <input
-        value={noPalet}
-        onChange={(e) => setNoPalet(e.target.value)}
-      />
+        <label>Jam</label>
+        <input type="text" value={jam} readOnly />
 
-      <label>Berat per Kemasan (optional)</label>
-      <input
-        value={beratPerKemasan}
-        onChange={(e) =>
-          setBeratPerKemasan(e.target.value)
-        }
-      />
+        <label>SKU QR</label>
+        <input
+          value={sku}
+          onChange={(e) => setSku(e.target.value)}
+          onBlur={(e) => lookupSKU(e.target.value)}
+          placeholder="Scan atau input manual"
+        />
 
-      <label>Qty Kemasan</label>
-      <input
-        type="number"
-        value={qtyKemasan}
-        onChange={(e) => setQtyKemasan(e.target.value)}
-      />
+        <button
+          className="btn-scan"
+          onClick={startScanner}
+        >
+          SCAN QR KAMERA
+        </button>
 
-      <label>Qty KG</label>
-      <input
-        value={qtyKg}
-        onChange={(e) => setQtyKg(e.target.value)}
-      />
+        {scannerOpen && <div id="reader"></div>}
 
-      <button onClick={handleSubmit}>
-        SUBMIT
-      </button>
+        <label>Ringkasan RM</label>
+        <div className="rm-box">{ringkasan}</div>
+
+        <label>Plant Tujuan</label>
+        <select
+          value={plant}
+          onChange={(e) => setPlant(e.target.value)}
+        >
+          <option>1111</option>
+          <option>1112</option>
+          <option>1113</option>
+          <option>LAINNYA</option>
+        </select>
+
+        {plant === "LAINNYA" && (
+          <input
+            placeholder="Input Plant"
+            value={plantManual}
+            onChange={(e) => setPlantManual(e.target.value)}
+          />
+        )}
+
+        <label>No Palet</label>
+        <input
+          value={noPalet}
+          onChange={(e) => setNoPalet(e.target.value)}
+          placeholder="Contoh: K 102"
+        />
+
+        <label>Berat per Kemasan (optional)</label>
+        <input
+          value={beratPerKemasan}
+          onChange={(e) =>
+            setBeratPerKemasan(e.target.value)
+          }
+          placeholder="Boleh koma"
+        />
+
+        <label>Qty Kemasan</label>
+        <input
+          type="number"
+          value={qtyKemasan}
+          onChange={(e) => setQtyKemasan(e.target.value)}
+        />
+
+        <label>Qty KG</label>
+        <input
+          value={qtyKg}
+          onChange={(e) => setQtyKg(e.target.value)}
+          placeholder="Boleh koma"
+        />
+
+        <button
+          className="btn-submit"
+          onClick={handleSubmit}
+        >
+          {loading ? "MENYIMPAN..." : "SUBMIT"}
+        </button>
+      </div>
     </div>
   );
 }
