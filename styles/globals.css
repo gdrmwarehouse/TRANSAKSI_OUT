@@ -1,42 +1,146 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: Arial, sans-serif;
   margin: 0;
   padding: 0;
-  background: #f7f7f7;
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
 }
 
 .container {
-  max-width: 500px;
+  max-width: 540px;
   margin: auto;
   padding: 16px;
 }
 
+.card {
+  background: rgba(255,255,255,0.96);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+
+.title {
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #007cf0, #00dfd8, #7928ca);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  color: #222;
+}
+
 input,
 select,
-button,
-textarea {
+button {
   width: 100%;
   padding: 14px;
-  margin-top: 8px;
-  margin-bottom: 14px;
-  font-size: 18px;
-  box-sizing: border-box;
+  border-radius: 14px;
+  border: 1px solid #ddd;
+  font-size: 17px;
+  margin-bottom: 12px;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border: 1px solid #007cf0;
+  box-shadow: 0 0 0 3px rgba(0,124,240,0.15);
 }
 
 .rm-box {
   min-height: 120px;
-  background: white;
-  border: 2px solid #ccc;
-  padding: 12px;
+  background: linear-gradient(135deg, #f8f9ff, #eef4ff);
+  border: 2px solid #d9e5ff;
+  border-radius: 16px;
+  padding: 14px;
+  font-size: 16px;
   white-space: pre-line;
-  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+button {
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-scan {
+  background: linear-gradient(90deg, #ff512f, #dd2476);
+  color: white;
+}
+
+.btn-submit {
+  background: linear-gradient(90deg, #11998e, #38ef7d);
+  color: white;
+  font-size: 20px;
+}
+
+button:hover {
+  transform: translateY(-1px);
 }
 
 .success {
-  background: #d4edda;
-  color: #155724;
+  background: linear-gradient(90deg, #38ef7d, #11998e);
+  color: white;
   padding: 14px;
-  font-weight: bold;
+  border-radius: 14px;
   text-align: center;
-  margin-bottom: 15px;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.error {
+  background: linear-gradient(90deg, #ff416c, #ff4b2b);
+  color: white;
+  padding: 14px;
+  border-radius: 14px;
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+#reader {
+  width: 100%;
+  margin-bottom: 16px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 10px;
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  input,
+  select,
+  button {
+    font-size: 16px;
+  }
 }
