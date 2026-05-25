@@ -33,7 +33,6 @@ export default function Home() {
   const [scannerOpen, setScannerOpen] = useState(false);
 
   useEffect(() => {
-    // Cek apakah sudah unlock di session ini
     const saved = sessionStorage.getItem("unlocked");
     if (saved === "yes") setUnlocked(true);
 
@@ -50,12 +49,19 @@ export default function Home() {
     return `${hh}:${mm}:${ss}`;
   }
 
+  // ── Hitung Netto Otomatis ──
+  const qtyKgNum       = parseFloat(String(qtyKg).replace(",", ".")) || 0;
+  const qtyKemasanNum  = parseInt(qtyKemasan) || 0;
+  const beratKemasanNum= parseFloat(String(beratPerKemasan).replace(",", ".")) || 0;
+  const netto = beratPerKemasan !== ""
+    ? qtyKgNum - (qtyKemasanNum * beratKemasanNum)
+    : null;
+
   // ── PIN HANDLER ──
   function handlePinPress(digit) {
     if (pin.length >= 6) return;
     const newPin = pin + digit;
     setPin(newPin);
-
     if (newPin.length === 6) {
       if (newPin === CORRECT_PIN) {
         sessionStorage.setItem("unlocked", "yes");
@@ -124,11 +130,11 @@ export default function Home() {
       setErrorMsg("Qty Kemasan harus bilangan bulat");
       return;
     }
-    if (isNaN(Number(qtyKg.replace(",", ".")))) {
+    if (isNaN(Number(String(qtyKg).replace(",", ".")))) {
       setErrorMsg("Qty KG harus angka");
       return;
     }
-    if (beratPerKemasan && isNaN(Number(beratPerKemasan.replace(",", ".")))) {
+    if (beratPerKemasan && isNaN(Number(String(beratPerKemasan).replace(",", ".")))) {
       setErrorMsg("Berat per Kemasan harus angka");
       return;
     }
@@ -138,15 +144,16 @@ export default function Home() {
 
     setLoading(true);
     const { error } = await supabase.from("trx_rm").insert([{
-      input_tanggal: tanggal,
-      input_jam: jam,
-      sku_qr: sku,
-      ringkasan_rm: ringkasan,
-      plant_tujuan: finalPlant,
-      no_palet: finalPalet,
-      berat_per_kemasan: beratPerKemasan === "" ? null : parseFloat(beratPerKemasan.replace(",", ".")),
-      qty_kemasan: parseInt(qtyKemasan),
-      qty_kg: parseFloat(qtyKg.replace(",", "."))
+      input_tanggal:     tanggal,
+      input_jam:         jam,
+      sku_qr:            sku,
+      ringkasan_rm:      ringkasan,
+      plant_tujuan:      finalPlant,
+      no_palet:          finalPalet,
+      berat_per_kemasan: beratPerKemasan === "" ? null : parseFloat(String(beratPerKemasan).replace(",", ".")),
+      qty_kemasan:       parseInt(qtyKemasan),
+      qty_kg:            parseFloat(String(qtyKg).replace(",", ".")),
+      netto_kg:          netto  // ← kolom AM di sheet
     }]);
     setLoading(false);
 
@@ -171,24 +178,17 @@ export default function Home() {
           <div style={styles.pinTitle}>MASUKKAN PIN</div>
           <div style={styles.pinSubtitle}>INPUT TRANSAKSI RM OUT</div>
 
-          {/* Dot indicator */}
           <div style={styles.dotRow}>
             {[0,1,2,3,4,5].map(i => (
-              <div
-                key={i}
-                style={{
-                  ...styles.dot,
-                  background: i < pin.length ? "#2563eb" : "#e2e8f0"
-                }}
-              />
+              <div key={i} style={{
+                ...styles.dot,
+                background: i < pin.length ? "#2563eb" : "#e2e8f0"
+              }}/>
             ))}
           </div>
 
-          {pinError && (
-            <div style={styles.pinError}>{pinError}</div>
-          )}
+          {pinError && <div style={styles.pinError}>{pinError}</div>}
 
-          {/* Keypad */}
           <div style={{
             ...styles.keypad,
             animation: shakePing ? "shake 0.4s" : "none"
@@ -213,7 +213,6 @@ export default function Home() {
             ))}
           </div>
         </div>
-
         <style>{`
           @keyframes shake {
             0%,100% { transform: translateX(0); }
@@ -228,7 +227,7 @@ export default function Home() {
   }
 
   // ══════════════════════════════
-  // TAMPILAN FORM (setelah unlock)
+  // TAMPILAN FORM
   // ══════════════════════════════
   return (
     <div className="container">
@@ -239,7 +238,11 @@ export default function Home() {
         <div className="title">INPUT TRANSAKSI RM OUT</div>
 
         <label>Tanggal</label>
-        <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+        <input
+          type="date"
+          value={tanggal}
+          onChange={(e) => setTanggal(e.target.value)}
+        />
 
         <label>Jam</label>
         <input type="text" value={jam} readOnly />
@@ -252,7 +255,9 @@ export default function Home() {
           placeholder="Scan atau input manual"
         />
 
-        <button className="btn-scan" onClick={startScanner}>SCAN QR KAMERA</button>
+        <button className="btn-scan" onClick={startScanner}>
+          SCAN QR KAMERA
+        </button>
         {scannerOpen && <div id="reader"></div>}
 
         <label>Ringkasan RM</label>
@@ -275,16 +280,65 @@ export default function Home() {
         )}
 
         <label>No Palet</label>
-        <input value={noPalet} onChange={(e) => setNoPalet(e.target.value)} placeholder="Contoh: K 102" />
+        <input
+          value={noPalet}
+          onChange={(e) => setNoPalet(e.target.value)}
+          placeholder="Contoh: K 102"
+        />
 
         <label>Berat per Kemasan (optional)</label>
-        <input value={beratPerKemasan} onChange={(e) => setBeratPerKemasan(e.target.value)} placeholder="Boleh koma" />
+        <input
+          value={beratPerKemasan}
+          onChange={(e) => setBeratPerKemasan(e.target.value)}
+          placeholder="Boleh koma"
+        />
 
         <label>Qty Kemasan</label>
-        <input type="number" value={qtyKemasan} onChange={(e) => setQtyKemasan(e.target.value)} />
+        <input
+          type="number"
+          value={qtyKemasan}
+          onChange={(e) => setQtyKemasan(e.target.value)}
+        />
 
         <label>Qty KG</label>
-        <input value={qtyKg} onChange={(e) => setQtyKg(e.target.value)} placeholder="Boleh koma" />
+        <input
+          value={qtyKg}
+          onChange={(e) => setQtyKg(e.target.value)}
+          placeholder="Boleh koma"
+        />
+
+        {/* ── NETTO OTOMATIS ── */}
+        <label>Netto (Otomatis)</label>
+        <div style={{
+          background: netto === null
+            ? "#fefce8"
+            : netto < 0
+              ? "#fef2f2"
+              : "#f0fdf4",
+          border: `1.5px solid ${
+            netto === null ? "#fde68a" : netto < 0 ? "#fca5a5" : "#86efac"
+          }`,
+          borderRadius: 10,
+          padding: "12px 16px",
+          fontSize: 15,
+          fontWeight: 600,
+          color: netto === null
+            ? "#92400e"
+            : netto < 0
+              ? "#dc2626"
+              : "#15803d",
+          marginBottom: 8,
+          minHeight: 44,
+          display: "flex",
+          alignItems: "center"
+        }}>
+          {netto === null
+            ? "⚖️ Tanpa berat kemasan (berat standar)"
+            : netto < 0
+              ? "⚠️ Netto negatif, cek kembali input"
+              : `✅ Netto: ${netto.toLocaleString("id-ID", { maximumFractionDigits: 3 })} Kg`
+          }
+        </div>
 
         <button className="btn-submit" onClick={handleSubmit}>
           {loading ? "MENYIMPAN..." : "SUBMIT"}
@@ -294,9 +348,6 @@ export default function Home() {
   );
 }
 
-// ══════════════════════════════
-// STYLES PIN
-// ══════════════════════════════
 const styles = {
   pinWrap: {
     minHeight: "100vh",
