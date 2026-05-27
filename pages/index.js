@@ -152,7 +152,8 @@ export default function Home() {
       no_palet:          finalPalet,
       berat_per_kemasan: beratPerKemasan === "" ? null : parseFloat(String(beratPerKemasan).replace(",", ".")),
       qty_kemasan:       parseInt(qtyKemasan),
-      qty_kg:            parseFloat(String(qtyKg).replace(",", ".")),
+      qty_kg: parseFloat(qtyKg.replace(",", ".")),
+sync_status: "pending"
       netto_kg:          netto  // ← kolom AM di sheet
     }]);
     setLoading(false);
