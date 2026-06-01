@@ -32,7 +32,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-const [historyDate, setHistoryDate] = useState("");
+const [historyDate, setHistoryDate] = useState(
+  new Date().toISOString().split("T")[0]
+);
 const [historyPlant, setHistoryPlant] = useState("");
 const [historyRows, setHistoryRows] = useState([]);
 const [historyLoading, setHistoryLoading] = useState(false);
