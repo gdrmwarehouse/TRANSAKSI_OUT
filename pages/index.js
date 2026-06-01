@@ -32,9 +32,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-const [historyDate, setHistoryDate] = useState(
-  new Date().toISOString().split("T")[0]
-);
+const [historyDate, setHistoryDate] = useState("");
 const [historyPlant, setHistoryPlant] = useState("");
 const [historyRows, setHistoryRows] = useState([]);
 const [historyLoading, setHistoryLoading] = useState(false);
@@ -143,11 +141,11 @@ const [historyLoading, setHistoryLoading] = useState(false);
     .order("created_at", { ascending: false })
     .limit(200);
 
-  if (historyDate) {
+  if (historyDate && historyDate.trim() !== "") {
     query = query.eq("input_tanggal", historyDate);
   }
 
-  if (historyPlant) {
+  if (historyPlant && historyPlant.trim() !== "") {
     query = query.eq("plant_tujuan", historyPlant);
   }
 
