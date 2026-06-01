@@ -21,7 +21,7 @@ export default function Home() {
   const [jam, setJam] = useState(formatTime(new Date()));
   const [sku, setSku] = useState("");
   const [ringkasan, setRingkasan] = useState("");
-  const [plant, setPlant] = useState("1111");
+  const [plant, setPlant] = useState("");
   const [plantManual, setPlantManual] = useState("");
   const [noPalet, setNoPalet] = useState("");
   const [beratPerKemasan, setBeratPerKemasan] = useState("");
@@ -122,10 +122,10 @@ export default function Home() {
 
   async function handleSubmit() {
     setErrorMsg("");
-    if (!sku || !qtyKemasan || !qtyKg) {
-      setErrorMsg("Field wajib belum lengkap");
-      return;
-    }
+    if (!sku || !plant || !qtyKemasan || !qtyKg) {
+  setErrorMsg("Field wajib belum lengkap");
+  return;
+}
     if (!Number.isInteger(Number(qtyKemasan))) {
       setErrorMsg("Qty Kemasan harus bilangan bulat");
       return;
@@ -139,6 +139,11 @@ export default function Home() {
       return;
     }
 
+    if (plant === "LAINNYA" && !plantManual.trim()) {
+  setErrorMsg("Plant manual wajib diisi");
+  return;
+}
+    
     const finalPlant = plant === "LAINNYA" ? plantManual : plant;
     const finalPalet = formatNoPalet(noPalet);
 
@@ -162,7 +167,7 @@ export default function Home() {
 
     new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play();
     setSuccess(true);
-    setSku(""); setRingkasan(""); setPlant("1111");
+    setSku(""); setRingkasan(""); setPlant("");
     setPlantManual(""); setNoPalet(""); setBeratPerKemasan("");
     setQtyKemasan(""); setQtyKg("");
     setTimeout(() => setSuccess(false), 3000);
@@ -264,13 +269,13 @@ export default function Home() {
         <label>Ringkasan RM</label>
         <div className="rm-box">{ringkasan}</div>
 
-        <label>Plant Tujuan</label>
         <select value={plant} onChange={(e) => setPlant(e.target.value)}>
-          <option>1111</option>
-          <option>1112</option>
-          <option>1113</option>
-          <option>LAINNYA</option>
-        </select>
+        <option value="">Pilih Plant Tujuan</option>
+         <option value="1111">1111</option>
+          <option value="1112">1112</option>
+          <option value="1113">1113</option>
+          <option value="LAINNYA">LAINNYA</option>
+          </select>
 
         {plant === "LAINNYA" && (
           <input
