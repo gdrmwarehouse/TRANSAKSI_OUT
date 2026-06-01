@@ -141,7 +141,7 @@ const [historyLoading, setHistoryLoading] = useState(false);
     .from("trx_rm")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
 
   if (historyDate) {
     query = query.eq("input_tanggal", historyDate);
