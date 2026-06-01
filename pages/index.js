@@ -31,6 +31,13 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+const [historyDate, setHistoryDate] = useState(
+  new Date().toISOString().split("T")[0]
+);
+const [historyPlant, setHistoryPlant] = useState("");
+const [historyRows, setHistoryRows] = useState([]);
+const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     const saved = sessionStorage.getItem("unlocked");
@@ -42,6 +49,12 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+  if (showHistory) {
+    loadHistory();
+  }
+}, [showHistory, historyDate, historyPlant]);
+  
   function formatTime(date) {
     const hh = String(date.getHours()).padStart(2, "0");
     const mm = String(date.getMinutes()).padStart(2, "0");
@@ -120,6 +133,36 @@ export default function Home() {
     return parts.length === 2 ? `${parts[0]} - ${parts[1]}` : value;
   }
 
+  async function loadHistory() {
+  setHistoryLoading(true);
+  setErrorMsg("");
+
+  let query = supabase
+    .from("trx_rm")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (historyDate) {
+    query = query.eq("input_tanggal", historyDate);
+  }
+
+  if (historyPlant) {
+    query = query.eq("plant_tujuan", historyPlant);
+  }
+
+  const { data, error } = await query;
+
+  setHistoryLoading(false);
+
+  if (error) {
+    setErrorMsg(error.message);
+    return;
+  }
+
+  setHistoryRows(data || []);
+}
+  
   async function handleSubmit() {
     setErrorMsg("");
     if (!sku || !plant || !qtyKemasan || !qtyKg) {
@@ -232,9 +275,26 @@ export default function Home() {
     );
   }
 
+const historySummary = {
+  totalTransaksi: historyRows.length,
+  totalQtyKemasan: historyRows.reduce(
+    (sum, r) => sum + (Number(r.qty_kemasan) || 0),
+    0
+  ),
+  totalQtyKg: historyRows.reduce(
+    (sum, r) => sum + (Number(r.qty_kg) || 0),
+    0
+  ),
+  totalNettoKg: historyRows.reduce(
+    (sum, r) => sum + (Number(r.netto_kg ?? r.qty_kg) || 0),
+    0
+  )
+};
   // ══════════════════════════════
   // TAMPILAN FORM
   // ══════════════════════════════
+
+
   return (
     <div className="container">
       <div className={`card ${loading ? "loading" : ""}`}>
@@ -349,6 +409,118 @@ export default function Home() {
         <button className="btn-submit" onClick={handleSubmit}>
           {loading ? "MENYIMPAN..." : "SUBMIT"}
         </button>
+          <button
+  className="btn-history"
+  type="button"
+  onClick={() => setShowHistory(!showHistory)}
+>
+  {showHistory ? "TUTUP HISTORY / SUMMARY" : "LIHAT HISTORY / SUMMARY"}
+</button>
+
+{showHistory && (
+  <div className="history-panel">
+    <div className="history-title">HISTORY & SUMMARY</div>
+
+    <label>Filter Tanggal</label>
+    <input
+      type="date"
+      value={historyDate}
+      onChange={(e) => setHistoryDate(e.target.value)}
+    />
+
+    <label>Filter Plant</label>
+    <select
+      value={historyPlant}
+      onChange={(e) => setHistoryPlant(e.target.value)}
+    >
+      <option value="">Semua Plant</option>
+      <option value="1111">1111</option>
+      <option value="1112">1112</option>
+      <option value="1113">1113</option>
+      <option value="LAINNYA">LAINNYA</option>
+    </select>
+
+    <button
+      className="btn-refresh"
+      type="button"
+      onClick={loadHistory}
+    >
+      REFRESH HISTORY
+    </button>
+
+    <div className="summary-grid">
+      <div className="summary-card">
+        <span>Total Transaksi</span>
+        <b>{historySummary.totalTransaksi}</b>
+      </div>
+
+      <div className="summary-card">
+        <span>Total Kemasan</span>
+        <b>{historySummary.totalQtyKemasan}</b>
+      </div>
+
+      <div className="summary-card">
+        <span>Total Qty KG</span>
+        <b>
+          {historySummary.totalQtyKg.toLocaleString("id-ID", {
+            maximumFractionDigits: 3
+          })}
+        </b>
+      </div>
+
+      <div className="summary-card">
+        <span>Total Netto</span>
+        <b>
+          {historySummary.totalNettoKg.toLocaleString("id-ID", {
+            maximumFractionDigits: 3
+          })}
+        </b>
+      </div>
+    </div>
+
+    {historyLoading && (
+      <div className="history-loading">Memuat history...</div>
+    )}
+
+    {!historyLoading && historyRows.length === 0 && (
+      <div className="history-empty">Belum ada data untuk filter ini.</div>
+    )}
+
+    {!historyLoading &&
+      historyRows.map((row) => (
+        <div className="history-card" key={row.id}>
+          <div className="history-main">
+            <b>{row.input_jam || "-"}</b>
+            <span>{row.plant_tujuan || "-"}</span>
+          </div>
+
+          <div className="history-sku">
+            {row.sku_qr || "-"}
+          </div>
+
+          <div className="history-rm">
+            {row.ringkasan_rm || "-"}
+          </div>
+
+          <div className="history-detail">
+            <span>Palet: {row.no_palet || "-"}</span>
+            <span>
+              Qty: {row.qty_kemasan || 0} / {row.qty_kg || 0} KG
+            </span>
+          </div>
+
+          <div className="history-netto">
+            Netto:{" "}
+            {(Number(row.netto_kg ?? row.qty_kg) || 0).toLocaleString(
+              "id-ID",
+              { maximumFractionDigits: 3 }
+            )}{" "}
+            KG
+          </div>
+        </div>
+      ))}
+  </div>
+)}
       </div>
     </div>
   );
