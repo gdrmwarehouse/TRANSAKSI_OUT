@@ -140,7 +140,8 @@ const [historyLoading, setHistoryLoading] = useState(false);
   let query = supabase
     .from("trx_rm")
     .select("*")
-    .order("created_at", { ascending: false })
+    .order("input_tanggal", { ascending: false })
+    .order("input_jam", { ascending: false })
     .limit(200);
 
   if (historyDate && historyDate.trim() !== "") {
