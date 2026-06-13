@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -30,8 +30,12 @@ export default function Home() {
   const [qtyKemasan, setQtyKemasan] = useState("");
   const [qtyKg, setQtyKg] = useState("");
   const [success, setSuccess] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [loading, setLoading] = useState(false);
+const [errorMsg, setErrorMsg] = useState("");
+const [loading, setLoading] = useState(false);
+
+const [toast, setToast] = useState(null);
+const [submitInfo, setSubmitInfo] = useState(null);
+const toastTimerRef = useRef(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 const [historyDate, setHistoryDate] = useState(
@@ -56,6 +60,20 @@ const [historyLoading, setHistoryLoading] = useState(false);
     loadHistory();
   }
 }, [showHistory, historyDate, historyPlant]);
+
+  useEffect(() => {
+  if (!errorMsg) return;
+
+  showCenterToast("error", errorMsg);
+  showSubmitInfo("error", errorMsg);
+}, [errorMsg]);
+
+useEffect(() => {
+  if (!success) return;
+
+  showCenterToast("success", "BERHASIL DISIMPAN");
+  showSubmitInfo("success", "Data berhasil disimpan.");
+}, [success]);
   
   function formatTime(date) {
     const hh = String(date.getHours()).padStart(2, "0");
@@ -154,6 +172,28 @@ const [historyLoading, setHistoryLoading] = useState(false);
   };
 }
 
+
+  function showCenterToast(type, message) {
+  if (toastTimerRef.current) {
+    clearTimeout(toastTimerRef.current);
+  }
+
+  setToast({
+    type,
+    message
+  });
+
+  toastTimerRef.current = setTimeout(() => {
+    setToast(null);
+  }, 2200);
+}
+
+function showSubmitInfo(type, message) {
+  setSubmitInfo({
+    type,
+    message
+  });
+}
   
   // ── FORM HANDLER ──
   async function lookupSKU(value) {
@@ -235,6 +275,8 @@ const [historyLoading, setHistoryLoading] = useState(false);
   
   async function handleSubmit() {
     setErrorMsg("");
+setSubmitInfo(null);
+setToast(null);
     if (!sku || !plant || !qtyKemasan || !qtyKg) {
   setErrorMsg("Field wajib belum lengkap");
   return;
@@ -391,8 +433,16 @@ const historySummary = {
   return (
     <div className="container">
       <div className={`card ${loading ? "loading" : ""}`}>
-        {success && <div className="success">BERHASIL</div>}
-        {errorMsg && <div className="error">{errorMsg}</div>}
+        {toast && (
+  <div className={`center-toast ${toast.type}`}>
+    <div className="center-toast-icon">
+      {toast.type === "success" ? "✅" : "❌"}
+    </div>
+    <div className="center-toast-text">
+      {toast.message}
+    </div>
+  </div>
+)}
 
         <div className="title">INPUT TRANSAKSI RM OUT</div>
 
@@ -570,8 +620,15 @@ const historySummary = {
         </div>
 
         <button className="btn-submit" onClick={handleSubmit}>
-          {loading ? "MENYIMPAN..." : "SUBMIT"}
-        </button>
+  {loading ? "MENYIMPAN..." : "SUBMIT"}
+</button>
+
+{submitInfo && (
+  <div className={`submit-info ${submitInfo.type}`}>
+    {submitInfo.type === "success" ? "✅ " : "⚠️ "}
+    {submitInfo.message}
+  </div>
+)}
           <button
   className="btn-history"
   type="button"
