@@ -21,6 +21,8 @@ export default function Home() {
   const [jam, setJam] = useState(formatTime(new Date()));
   const [sku, setSku] = useState("");
   const [ringkasan, setRingkasan] = useState("");
+  const [stokInfo, setStokInfo] = useState(null);
+  const [stockLoading, setStockLoading] = useState(false);
   const [plant, setPlant] = useState("");
   const [plantManual, setPlantManual] = useState("");
   const [noPalet, setNoPalet] = useState("");
@@ -97,16 +99,83 @@ const [historyLoading, setHistoryLoading] = useState(false);
     setPinError("");
   }
 
+
+  async function fetchStockInfoBySku(value) {
+  const cleanSku = String(value || "").trim();
+
+  if (!cleanSku) {
+    return {
+      ok: false,
+      message: "SKU QR kosong",
+      info: null
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("v_stock_rm")
+    .select(
+      "sku_qr, ringkasan_rm, qty_masuk_pcs, qty_masuk_kg, keluar_arsip_pcs, keluar_arsip_kg, keluar_live_pcs, keluar_live_kg, total_keluar_pcs, total_keluar_kg, sisa_pcs, sisa_kg"
+    )
+    .eq("sku_qr", cleanSku)
+    .maybeSingle();
+
+  if (error || !data) {
+    return {
+      ok: false,
+      message: "SKU tidak ditemukan / belum ada stok acuan",
+      info: null
+    };
+  }
+
+  const info = {
+    skuQr: data.sku_qr,
+    ringkasanRm: data.ringkasan_rm || "",
+
+    qtyMasukPcs: Number(data.qty_masuk_pcs) || 0,
+    qtyMasukKg: Number(data.qty_masuk_kg) || 0,
+
+    keluarArsipPcs: Number(data.keluar_arsip_pcs) || 0,
+    keluarArsipKg: Number(data.keluar_arsip_kg) || 0,
+
+    keluarLivePcs: Number(data.keluar_live_pcs) || 0,
+    keluarLiveKg: Number(data.keluar_live_kg) || 0,
+
+    totalKeluarPcs: Number(data.total_keluar_pcs) || 0,
+    totalKeluarKg: Number(data.total_keluar_kg) || 0,
+
+    sisaPcs: Number(data.sisa_pcs) || 0,
+    sisaKg: Number(data.sisa_kg) || 0
+  };
+
+  return {
+    ok: true,
+    message: "OK",
+    info
+  };
+}
+
+  
   // ── FORM HANDLER ──
   async function lookupSKU(value) {
-    if (!value) return;
-    const { data } = await supabase
-      .from("master_rm")
-      .select("ringkasan_rm")
-      .eq("sku_qr", value)
-      .single();
-    setRingkasan(data ? data.ringkasan_rm : "SKU tidak ditemukan");
+  if (!value) return;
+
+  setErrorMsg("");
+  setStokInfo(null);
+  setStockLoading(true);
+
+  const result = await fetchStockInfoBySku(value);
+
+  setStockLoading(false);
+
+  if (!result.ok) {
+    setRingkasan(result.message);
+    setStokInfo(null);
+    return;
   }
+
+  setRingkasan(result.info.ringkasanRm);
+  setStokInfo(result.info);
+}
 
   async function startScanner() {
     setScannerOpen(true);
@@ -174,6 +243,28 @@ const [historyLoading, setHistoryLoading] = useState(false);
       setErrorMsg("Qty Kemasan harus bilangan bulat");
       return;
     }
+    const latestStock = await fetchStockInfoBySku(sku);
+
+if (!latestStock.ok) {
+  setErrorMsg("Stok SKU belum terbaca. Scan / input SKU QR ulang.");
+  return;
+}
+
+setStokInfo(latestStock.info);
+
+if (latestStock.info.sisaPcs <= 0) {
+  setErrorMsg("Stok PCS SKU ini sudah habis. Tidak bisa submit.");
+  return;
+}
+
+if (Number(qtyKemasan) > latestStock.info.sisaPcs) {
+  setErrorMsg(
+    "Qty melebihi sisa stok terbaru. Sisa stok SKU ini hanya " +
+    latestStock.info.sisaPcs.toLocaleString("id-ID") +
+    " pcs."
+  );
+  return;
+}
     if (isNaN(Number(String(qtyKg).replace(",", ".")))) {
       setErrorMsg("Qty KG harus angka");
       return;
@@ -212,8 +303,9 @@ const [historyLoading, setHistoryLoading] = useState(false);
     new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play();
     setSuccess(true);
     setSku(""); setRingkasan(""); setPlant("");
-    setPlantManual(""); setNoPalet(""); setBeratPerKemasan("");
-    setQtyKemasan(""); setQtyKg("");
+setPlantManual(""); setNoPalet(""); setBeratPerKemasan("");
+setQtyKemasan(""); setQtyKg("");
+setStokInfo(null);
     setTimeout(() => setSuccess(false), 3000);
   }
 
@@ -330,6 +422,76 @@ const historySummary = {
         <label>Ringkasan RM</label>
         <div className="rm-box">{ringkasan}</div>
 
+          {stockLoading && (
+  <div className="stock-card stock-loading">
+    <div className="stock-head">
+      <div>
+        <span className="stock-label">Mengecek stok</span>
+        <h3>Mohon tunggu...</h3>
+      </div>
+      <div className="stock-icon">⏳</div>
+    </div>
+  </div>
+)}
+
+{stokInfo && (
+  <div className={`stock-card ${stokInfo.sisaPcs <= 0 ? "stock-danger" : "stock-ok"}`}>
+    <div className="stock-head">
+      <div>
+        <span className="stock-label">Stok tersedia real-time</span>
+        <h3>
+          {stokInfo.sisaPcs.toLocaleString("id-ID")} PCS
+        </h3>
+      </div>
+      <div className="stock-icon">
+        {stokInfo.sisaPcs <= 0 ? "⛔" : "📦"}
+      </div>
+    </div>
+
+    <div className="stock-bar">
+      <div
+        className="stock-bar-fill"
+        style={{
+          width:
+            stokInfo.qtyMasukPcs > 0
+              ? `${Math.max(
+                  0,
+                  Math.min(100, (stokInfo.sisaPcs / stokInfo.qtyMasukPcs) * 100)
+                )}%`
+              : "0%"
+        }}
+      />
+    </div>
+
+    <div className="stock-grid">
+      <div className="stock-mini">
+        <span>Qty Masuk</span>
+        <b>{stokInfo.qtyMasukPcs.toLocaleString("id-ID")} PCS</b>
+      </div>
+
+      <div className="stock-mini">
+        <span>Total Keluar</span>
+        <b>{stokInfo.totalKeluarPcs.toLocaleString("id-ID")} PCS</b>
+      </div>
+
+      <div className="stock-mini">
+        <span>Sisa KG</span>
+        <b>
+          {stokInfo.sisaKg.toLocaleString("id-ID", {
+            maximumFractionDigits: 3
+          })}{" "}
+          KG
+        </b>
+      </div>
+
+      <div className="stock-mini">
+        <span>Status</span>
+        <b>{stokInfo.sisaPcs <= 0 ? "HABIS" : "AMAN"}</b>
+      </div>
+    </div>
+  </div>
+)}
+  
         <select value={plant} onChange={(e) => setPlant(e.target.value)}>
         <option value="">Pilih Plant Tujuan</option>
          <option value="1111">1111</option>
