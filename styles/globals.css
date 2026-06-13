@@ -385,9 +385,7 @@ button:hover {
 }
 
 @media (max-width: 480px) {
-  .stock-head h3 {
-    font-size: 24px;
-  }
+
 
  .stock-grid {
   position: relative;
