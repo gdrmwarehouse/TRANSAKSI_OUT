@@ -532,3 +532,55 @@ button:hover {
   color: #b91c1c;
   border: 1px solid #fca5a5;
 }
+
+/* =====================================================
+   WARNING TOAST + STOCK CARD tambahan
+   Tambahkan ke paling bawah styles/globals.css
+   ===================================================== */
+
+.center-toast.warning {
+  background: linear-gradient(135deg, #fffbeb, #fde68a);
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.submit-info.warning {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.stock-warning {
+  background: linear-gradient(135deg, #fffbeb 0%, #fde68a 45%, #fbbf24 100%);
+  color: #78350f;
+}
+
+.stock-muted {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 45%, #cbd5e1 100%);
+  color: #334155;
+}
+
+/* Pastikan di HP tetap 2 kolom x 2 baris */
+.stock-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 480px) {
+  .stock-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .stock-mini {
+    padding: 9px 8px;
+    min-height: 68px;
+  }
+
+  .stock-mini span {
+    font-size: 10px;
+  }
+
+  .stock-mini b {
+    font-size: 13px;
+  }
+}
