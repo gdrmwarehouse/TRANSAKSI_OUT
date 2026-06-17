@@ -9,6 +9,11 @@ const supabase = createClient(
 
 const CORRECT_PIN = "225588"; // ← GANTI PIN DI SINI
 
+// Warning stok hanya aktif untuk data kedatangan mulai tanggal ini.
+// Data lama tetap boleh submit tanpa dibatasi stok.
+const STOCK_WARNING_START_DATE = "2026-06-17";
+
+
 export default function Home() {
   const [unlocked, setUnlocked] = useState(false);
   const [pin, setPin] = useState("");
@@ -132,7 +137,7 @@ useEffect(() => {
   const { data, error } = await supabase
     .from("v_stock_rm")
     .select(
-      "sku_qr, ringkasan_rm, qty_masuk_pcs, qty_masuk_kg, keluar_arsip_pcs, keluar_arsip_kg, keluar_live_pcs, keluar_live_kg, total_keluar_pcs, total_keluar_kg, sisa_pcs, sisa_kg"
+      "sku_qr, ringkasan_rm, tgl_kedatangan, qty_masuk_pcs, qty_masuk_kg, keluar_arsip_pcs, keluar_arsip_kg, keluar_live_pcs, keluar_live_kg, total_keluar_pcs, total_keluar_kg, sisa_pcs, sisa_kg"
     )
     .eq("sku_qr", cleanSku)
     .maybeSingle();
@@ -145,9 +150,15 @@ useEffect(() => {
     };
   }
 
+  const tglKedatangan = data.tgl_kedatangan || null;
+  const isStockWarningActive =
+    !!tglKedatangan && tglKedatangan >= STOCK_WARNING_START_DATE;
+
   const info = {
     skuQr: data.sku_qr,
     ringkasanRm: data.ringkasan_rm || "",
+    tglKedatangan,
+    isStockWarningActive,
 
     qtyMasukPcs: Number(data.qty_masuk_pcs) || 0,
     qtyMasukKg: Number(data.qty_masuk_kg) || 0,
@@ -277,6 +288,7 @@ function showSubmitInfo(type, message) {
     setErrorMsg("");
 setSubmitInfo(null);
 setToast(null);
+setSuccess(false);
     if (!sku || !plant || !qtyKemasan || !qtyKg) {
   setErrorMsg("Field wajib belum lengkap");
   return;
@@ -286,26 +298,24 @@ setToast(null);
       return;
     }
     const latestStock = await fetchStockInfoBySku(sku);
+let stockWarningMessage = "";
 
 if (!latestStock.ok) {
-  setErrorMsg("Stok SKU belum terbaca. Scan / input SKU QR ulang.");
-  return;
-}
+  stockWarningMessage =
+    "Stok SKU belum terbaca. Data tetap disimpan, cek ulang manual.";
+} else {
+  setStokInfo(latestStock.info);
 
-setStokInfo(latestStock.info);
-
-if (latestStock.info.sisaPcs <= 0) {
-  setErrorMsg("Stok PCS SKU ini sudah habis. Tidak bisa submit.");
-  return;
-}
-
-if (Number(qtyKemasan) > latestStock.info.sisaPcs) {
-  setErrorMsg(
-    "Qty melebihi sisa stok terbaru. Sisa stok SKU ini hanya " +
-    latestStock.info.sisaPcs.toLocaleString("id-ID") +
-    " pcs."
-  );
-  return;
+  if (
+    latestStock.info.isStockWarningActive &&
+    Number(qtyKemasan) > latestStock.info.sisaPcs
+  ) {
+    stockWarningMessage =
+      "WARNING: Qty input melebihi sisa stok tersedia. " +
+      "Sisa stok: " +
+      latestStock.info.sisaPcs.toLocaleString("id-ID") +
+      " pcs. Data tetap disimpan.";
+  }
 }
     if (isNaN(Number(String(qtyKg).replace(",", ".")))) {
       setErrorMsg("Qty KG harus angka");
@@ -343,12 +353,19 @@ if (Number(qtyKemasan) > latestStock.info.sisaPcs) {
     if (error) { setErrorMsg(error.message); return; }
 
     new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play();
-    setSuccess(true);
+
+    if (stockWarningMessage) {
+      showCenterToast("warning", "DATA TERSIMPAN. " + stockWarningMessage);
+      showSubmitInfo("warning", "Data tersimpan. " + stockWarningMessage);
+    } else {
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    }
+
     setSku(""); setRingkasan(""); setPlant("");
 setPlantManual(""); setNoPalet(""); setBeratPerKemasan("");
 setQtyKemasan(""); setQtyKg("");
 setStokInfo(null);
-    setTimeout(() => setSuccess(false), 3000);
   }
 
   // ══════════════════════════════
@@ -436,7 +453,7 @@ const historySummary = {
         {toast && (
   <div className={`center-toast ${toast.type}`}>
     <div className="center-toast-icon">
-      {toast.type === "success" ? "✅" : "❌"}
+      {toast.type === "success" ? "✅" : toast.type === "warning" ? "⚠️" : "❌"}
     </div>
     <div className="center-toast-text">
       {toast.message}
@@ -485,16 +502,28 @@ const historySummary = {
 )}
 
 {stokInfo && (
-  <div className={`stock-card ${stokInfo.sisaPcs <= 0 ? "stock-danger" : "stock-ok"}`}>
+  <div
+    className={`stock-card ${
+      !stokInfo.isStockWarningActive
+        ? "stock-muted"
+        : stokInfo.sisaPcs <= 0
+          ? "stock-warning"
+          : "stock-ok"
+    }`}
+  >
     <div className="stock-head">
       <div>
-        <span className="stock-label">Stok tersedia real-time</span>
+        <span className="stock-label">
+          {stokInfo.isStockWarningActive
+            ? "Stok tersedia real-time"
+            : "Info stok / warning nonaktif"}
+        </span>
         <h3>
           {stokInfo.sisaPcs.toLocaleString("id-ID")} PCS
         </h3>
       </div>
       <div className="stock-icon">
-        {stokInfo.sisaPcs <= 0 ? "⛔" : "📦"}
+        {!stokInfo.isStockWarningActive ? "ℹ️" : stokInfo.sisaPcs <= 0 ? "⚠️" : "📦"}
       </div>
     </div>
 
@@ -536,7 +565,13 @@ const historySummary = {
 
       <div className="stock-mini">
         <span>Status</span>
-        <b>{stokInfo.sisaPcs <= 0 ? "HABIS" : "AMAN"}</b>
+        <b>
+          {!stokInfo.isStockWarningActive
+            ? "INFO"
+            : stokInfo.sisaPcs <= 0
+              ? "WARNING"
+              : "AMAN"}
+        </b>
       </div>
     </div>
   </div>
@@ -625,7 +660,7 @@ const historySummary = {
 
 {submitInfo && (
   <div className={`submit-info ${submitInfo.type}`}>
-    {submitInfo.type === "success" ? "✅ " : "⚠️ "}
+    {submitInfo.type === "success" ? "✅ " : submitInfo.type === "warning" ? "⚠️ " : "❌ "}
     {submitInfo.message}
   </div>
 )}
