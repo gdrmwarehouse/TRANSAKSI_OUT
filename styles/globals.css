@@ -420,48 +420,14 @@ button:hover {
 }
 
 @media (max-width: 480px) {
-  .stock-card {
-    padding: 14px;
-  }
-
-  .stock-head h3 {
-    font-size: 25px;
-  }
-
-  .stock-icon {
-    width: 48px;
-    height: 48px;
-    font-size: 25px;
-  }
-
-  .stock-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9px;
-  }
-
-  .stock-mini {
-    padding: 9px 8px;
-    min-height: 68px;
-  }
-
-  .stock-mini span {
-    font-size: 10px;
-  }
-
-  .stock-mini b {
-    font-size: 13px;
-  }
-}
-
-
-.center-toast {
+ .center-toast {
   position: fixed;
   left: 50%;
   top: 48%;
   transform: translate(-50%, -50%);
   z-index: 9999;
   width: min(86vw, 360px);
-  padding: 18px 18px;
+  padding: 18px;
   border-radius: 22px;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
   display: flex;
@@ -477,10 +443,11 @@ button:hover {
   border: 1px solid rgba(16, 185, 129, 0.28);
 }
 
-.center-toast.error {
-  background: linear-gradient(135deg, #fef2f2, #fecaca);
-  color: #991b1b;
-  border: 1px solid rgba(239, 68, 68, 0.28);
+.center-toast.error,
+.center-toast.warning {
+  background: linear-gradient(135deg, #fff7ed, #fed7aa);
+  color: #9a3412;
+  border: 1px solid rgba(249, 115, 22, 0.3);
 }
 
 .center-toast-icon {
@@ -505,6 +472,7 @@ button:hover {
     opacity: 0;
     transform: translate(-50%, -45%) scale(0.92);
   }
+
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
@@ -527,45 +495,161 @@ button:hover {
   border: 1px solid #86efac;
 }
 
-.submit-info.error {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fca5a5;
-}
-
-/* =====================================================
-   WARNING TOAST + STOCK CARD tambahan
-   Tambahkan ke paling bawah styles/globals.css
-   ===================================================== */
-
-.center-toast.warning {
-  background: linear-gradient(135deg, #fffbeb, #fde68a);
-  color: #92400e;
-  border: 1px solid rgba(245, 158, 11, 0.35);
-}
-
+.submit-info.error,
 .submit-info.warning {
-  background: #fffbeb;
-  color: #92400e;
-  border: 1px solid #fcd34d;
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+
+.stock-card {
+  margin: 14px 0 18px;
+  padding: 16px;
+  border-radius: 18px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  overflow: hidden;
+  position: relative;
+}
+
+.stock-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top right, rgba(255,255,255,0.9), transparent 35%),
+    radial-gradient(circle at bottom left, rgba(255,255,255,0.6), transparent 40%);
+}
+
+.stock-ok {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 45%, #a7f3d0 100%);
+  color: #064e3b;
+}
+
+.stock-danger {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 45%, #fecaca 100%);
+  color: #7f1d1d;
 }
 
 .stock-warning {
-  background: linear-gradient(135deg, #fffbeb 0%, #fde68a 45%, #fbbf24 100%);
-  color: #78350f;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 45%, #fed7aa 100%);
+  color: #9a3412;
 }
 
-.stock-muted {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 45%, #cbd5e1 100%);
-  color: #334155;
+.stock-info {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 45%, #bfdbfe 100%);
+  color: #1e3a8a;
 }
 
-/* Pastikan di HP tetap 2 kolom x 2 baris */
+.stock-loading {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 45%, #bfdbfe 100%);
+  color: #1e3a8a;
+}
+
+.stock-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.stock-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin-bottom: 4px;
+}
+
+.stock-head h3 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.stock-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8);
+}
+
+.stock-bar {
+  position: relative;
+  z-index: 1;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.12);
+  margin-bottom: 14px;
+}
+
+.stock-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: currentColor;
+  transition: width 0.35s ease;
+}
+
 .stock-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stock-mini {
+  padding: 10px 9px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.75);
+  min-height: 74px;
+}
+
+.stock-mini span {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  opacity: 0.72;
+  margin-bottom: 5px;
+}
+
+.stock-mini b {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+  word-break: break-word;
 }
 
 @media (max-width: 480px) {
+  .stock-card {
+    padding: 14px;
+  }
+
+  .stock-head h3 {
+    font-size: 25px;
+  }
+
+  .stock-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 25px;
+  }
+
   .stock-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 9px;
