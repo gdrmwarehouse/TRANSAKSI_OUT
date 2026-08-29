@@ -54,6 +54,15 @@ const [historySearch, setHistorySearch] = useState("");
 const [historyRows, setHistoryRows] = useState([]);
 const [historyLoading, setHistoryLoading] = useState(false);
 
+  const filteredHistoryRows = useMemo(() => {
+    const term = historySearch.trim().toLowerCase();
+    if (!term) return historyRows;
+    return historyRows.filter((r) => {
+      const fields = [r.sku_qr, r.ringkasan_rm, r.no_palet, r.plant_tujuan];
+      return fields.some((f) => String(f || "").toLowerCase().includes(term));
+    });
+  }, [historyRows, historySearch]);
+
   useEffect(() => {
     const saved = sessionStorage.getItem("unlocked");
     if (saved === "yes") setUnlocked(true);
@@ -543,15 +552,6 @@ setStokInfo(null);
       </div>
     );
   }
-
-const filteredHistoryRows = useMemo(() => {
-  const term = historySearch.trim().toLowerCase();
-  if (!term) return historyRows;
-  return historyRows.filter((r) => {
-    const fields = [r.sku_qr, r.ringkasan_rm, r.no_palet, r.plant_tujuan];
-    return fields.some((f) => String(f || "").toLowerCase().includes(term));
-  });
-}, [historyRows, historySearch]);
 
 const historySummary = {
   totalTransaksi: filteredHistoryRows.length,
