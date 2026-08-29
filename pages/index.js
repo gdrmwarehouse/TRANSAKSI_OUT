@@ -384,14 +384,50 @@ function showSubmitInfo(type, message) {
     return msg;
   }
 
-  function sendHistoryToWA() {
+  async function copyWaMessage() {
+    if (filteredHistoryRows.length === 0) {
+      setErrorMsg("Tidak ada data history untuk disalin");
+      return;
+    }
+    const text = buildWaMessage();
+    try {
+      await navigator.clipboard.writeText(text);
+      showCenterToast("success", "Teks laporan disalin ke clipboard.");
+    } catch (err) {
+      setErrorMsg("Gagal menyalin teks, coba lagi");
+    }
+  }
+
+  async function sendHistoryToWA() {
     if (filteredHistoryRows.length === 0) {
       setErrorMsg("Tidak ada data history untuk dikirim");
       return;
     }
     const text = buildWaMessage();
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
+
+    // 1) Coba pakai share sheet asli HP (tidak kena limit panjang URL sama sekali)
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        if (err && err.name === "AbortError") return; // user batal share, jangan lanjut fallback
+      }
+    }
+
+    // 2) Fallback: salin ke clipboard lalu buka WhatsApp, tinggal paste manual
+    try {
+      await navigator.clipboard.writeText(text);
+      showCenterToast(
+        "success",
+        "Teks laporan disalin. Buka chat/grup WhatsApp lalu tempel (paste)."
+      );
+      window.open("https://wa.me/", "_blank");
+    } catch (err) {
+      // 3) Fallback terakhir: tetap coba link wa.me (bisa saja terpotong kalau kepanjangan)
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+    }
   }
 
   async function loadHistory() {
@@ -861,6 +897,9 @@ const historySummary = {
       </button>
       <button className="btn-wa" type="button" onClick={sendHistoryToWA}>
         📲 KIRIM KE WHATSAPP
+      </button>
+      <button className="btn-copy" type="button" onClick={copyWaMessage}>
+        📋 SALIN TEKS LAPORAN
       </button>
     </div>
 
