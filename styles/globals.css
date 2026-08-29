@@ -150,6 +150,13 @@ button:hover {
   margin-bottom: 0;
 }
 
+.btn-copy {
+  background: linear-gradient(90deg, #64748b, #334155);
+  color: white;
+  box-shadow: 0 10px 22px rgba(51, 65, 85, 0.22);
+  margin-bottom: 0;
+}
+
 .success {
   background: linear-gradient(90deg, #38ef7d, #11998e);
   color: white;
