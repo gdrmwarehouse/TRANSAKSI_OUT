@@ -341,29 +341,44 @@ function showSubmitInfo(type, message) {
       (sum, r) => sum + (Number(r.qty_kemasan) || 0),
       0
     );
-    const totalKg = filteredHistoryRows.reduce(
-      (sum, r) => sum + (Number(r.qty_kg) || 0),
+    const totalNetto = filteredHistoryRows.reduce(
+      (sum, r) => sum + (Number(r.netto_kg ?? r.qty_kg) || 0),
       0
     );
 
+    // Kelompokkan & totalkan per SKU QR
+    const groupedMap = {};
+    filteredHistoryRows.forEach((r) => {
+      const key = r.sku_qr || "-";
+      if (!groupedMap[key]) {
+        groupedMap[key] = {
+          skuQr: key,
+          ringkasanRm: r.ringkasan_rm || "",
+          totalPcs: 0,
+          totalNetto: 0
+        };
+      }
+      groupedMap[key].totalPcs += Number(r.qty_kemasan) || 0;
+      groupedMap[key].totalNetto += Number(r.netto_kg ?? r.qty_kg) || 0;
+    });
+    const groupedList = Object.values(groupedMap);
+
     let msg = "*LAPORAN TRANSAKSI RM OUT*\n";
     msg += `Tanggal: ${historyDate || "Semua"} | Plant: ${historyPlant || "Semua"}\n`;
-    msg += `Total Qty: ${totalPcs.toLocaleString("id-ID")} PCS | ${totalKg.toLocaleString(
+    msg += `Total Keseluruhan: ${totalPcs.toLocaleString("id-ID")} PCS | ${totalNetto.toLocaleString(
       "id-ID",
       { maximumFractionDigits: 3 }
-    )} KG\n`;
-    msg += "\nRINCIAN:";
+    )} KG (netto)\n`;
+    msg += "\nRINCIAN PER SKU:";
 
-    filteredHistoryRows.forEach((r, i) => {
-      const netto = Number(r.netto_kg ?? r.qty_kg) || 0;
+    groupedList.forEach((g, i) => {
       msg += "\n\n";
-      msg += `${i + 1}. ${r.sku_qr || "-"}\n`;
-      msg += `${r.ringkasan_rm || "-"}\n`;
-      msg += `Jam: ${r.input_jam || "-"} | Plant: ${r.plant_tujuan || "-"} | Palet: ${r.no_palet || "-"}\n`;
-      msg += `Qty: ${r.qty_kemasan || 0} pcs / ${r.qty_kg || 0} kg | Netto: ${netto.toLocaleString(
+      msg += `${i + 1}. ${g.skuQr}\n`;
+      if (g.ringkasanRm) msg += `${g.ringkasanRm}\n`;
+      msg += `Total: ${g.totalPcs.toLocaleString("id-ID")} pcs | ${g.totalNetto.toLocaleString(
         "id-ID",
         { maximumFractionDigits: 3 }
-      )} kg`;
+      )} kg netto`;
     });
 
     return msg;
