@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Html5Qrcode } from "html5-qrcode";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -47,6 +50,7 @@ const [historyDate, setHistoryDate] = useState(
   new Date().toISOString().split("T")[0]
 );
 const [historyPlant, setHistoryPlant] = useState("");
+const [historySearch, setHistorySearch] = useState("");
 const [historyRows, setHistoryRows] = useState([]);
 const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -253,6 +257,119 @@ function showSubmitInfo(type, message) {
     return parts.length === 2 ? `${parts[0]} - ${parts[1]}` : value;
   }
 
+  // ── EXPORT & SHARE HELPERS ──
+  function historyRowToExport(r) {
+    return {
+      Tanggal: r.input_tanggal || "-",
+      Jam: r.input_jam || "-",
+      "SKU QR": r.sku_qr || "-",
+      "Ringkasan RM": r.ringkasan_rm || "-",
+      Plant: r.plant_tujuan || "-",
+      "No Palet": r.no_palet || "-",
+      "Qty Kemasan": r.qty_kemasan || 0,
+      "Qty KG": r.qty_kg || 0,
+      "Netto KG": Number(r.netto_kg ?? r.qty_kg) || 0
+    };
+  }
+
+  function exportHistoryExcel() {
+    if (filteredHistoryRows.length === 0) {
+      setErrorMsg("Tidak ada data history untuk diexport");
+      return;
+    }
+    const rows = filteredHistoryRows.map(historyRowToExport);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "History");
+    const fileName = `history-rm-out_${historyDate || "semua"}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  }
+
+  function exportHistoryPDF() {
+    if (filteredHistoryRows.length === 0) {
+      setErrorMsg("Tidak ada data history untuk diexport");
+      return;
+    }
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(14);
+    doc.text("HISTORY TRANSAKSI RM OUT", 14, 14);
+    doc.setFontSize(10);
+    doc.text(
+      `Tanggal: ${historyDate || "Semua"}  |  Plant: ${historyPlant || "Semua"}  |  Pencarian: ${historySearch || "-"}`,
+      14,
+      20
+    );
+
+    autoTable(doc, {
+      startY: 26,
+      head: [[
+        "Tanggal", "Jam", "SKU QR", "Ringkasan RM", "Plant",
+        "No Palet", "Qty Kemasan", "Qty KG", "Netto KG"
+      ]],
+      body: filteredHistoryRows.map((r) => [
+        r.input_tanggal || "-",
+        r.input_jam || "-",
+        r.sku_qr || "-",
+        r.ringkasan_rm || "-",
+        r.plant_tujuan || "-",
+        r.no_palet || "-",
+        r.qty_kemasan || 0,
+        r.qty_kg || 0,
+        (Number(r.netto_kg ?? r.qty_kg) || 0).toLocaleString("id-ID", {
+          maximumFractionDigits: 3
+        })
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [79, 70, 229] }
+    });
+
+    const fileName = `history-rm-out_${historyDate || "semua"}.pdf`;
+    doc.save(fileName);
+  }
+
+  function buildWaMessage() {
+    const totalPcs = filteredHistoryRows.reduce(
+      (sum, r) => sum + (Number(r.qty_kemasan) || 0),
+      0
+    );
+    const totalKg = filteredHistoryRows.reduce(
+      (sum, r) => sum + (Number(r.qty_kg) || 0),
+      0
+    );
+
+    let msg = "*LAPORAN TRANSAKSI RM OUT*\n";
+    msg += `Tanggal: ${historyDate || "Semua"} | Plant: ${historyPlant || "Semua"}\n`;
+    msg += `Total Qty: ${totalPcs.toLocaleString("id-ID")} PCS | ${totalKg.toLocaleString(
+      "id-ID",
+      { maximumFractionDigits: 3 }
+    )} KG\n`;
+    msg += "\nRINCIAN:";
+
+    filteredHistoryRows.forEach((r, i) => {
+      const netto = Number(r.netto_kg ?? r.qty_kg) || 0;
+      msg += "\n\n";
+      msg += `${i + 1}. ${r.sku_qr || "-"}\n`;
+      msg += `${r.ringkasan_rm || "-"}\n`;
+      msg += `Jam: ${r.input_jam || "-"} | Plant: ${r.plant_tujuan || "-"} | Palet: ${r.no_palet || "-"}\n`;
+      msg += `Qty: ${r.qty_kemasan || 0} pcs / ${r.qty_kg || 0} kg | Netto: ${netto.toLocaleString(
+        "id-ID",
+        { maximumFractionDigits: 3 }
+      )} kg`;
+    });
+
+    return msg;
+  }
+
+  function sendHistoryToWA() {
+    if (filteredHistoryRows.length === 0) {
+      setErrorMsg("Tidak ada data history untuk dikirim");
+      return;
+    }
+    const text = buildWaMessage();
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
+  }
+
   async function loadHistory() {
   setHistoryLoading(true);
   setErrorMsg("");
@@ -427,17 +544,26 @@ setStokInfo(null);
     );
   }
 
+const filteredHistoryRows = useMemo(() => {
+  const term = historySearch.trim().toLowerCase();
+  if (!term) return historyRows;
+  return historyRows.filter((r) => {
+    const fields = [r.sku_qr, r.ringkasan_rm, r.no_palet, r.plant_tujuan];
+    return fields.some((f) => String(f || "").toLowerCase().includes(term));
+  });
+}, [historyRows, historySearch]);
+
 const historySummary = {
-  totalTransaksi: historyRows.length,
-  totalQtyKemasan: historyRows.reduce(
+  totalTransaksi: filteredHistoryRows.length,
+  totalQtyKemasan: filteredHistoryRows.reduce(
     (sum, r) => sum + (Number(r.qty_kemasan) || 0),
     0
   ),
-  totalQtyKg: historyRows.reduce(
+  totalQtyKg: filteredHistoryRows.reduce(
     (sum, r) => sum + (Number(r.qty_kg) || 0),
     0
   ),
-  totalNettoKg: historyRows.reduce(
+  totalNettoKg: filteredHistoryRows.reduce(
     (sum, r) => sum + (Number(r.netto_kg ?? r.qty_kg) || 0),
     0
   )
@@ -703,6 +829,26 @@ const historySummary = {
       REFRESH HISTORY
     </button>
 
+    <label>Cari (SKU / Ringkasan RM / Plant / No Palet)</label>
+    <input
+      type="text"
+      value={historySearch}
+      onChange={(e) => setHistorySearch(e.target.value)}
+      placeholder="Ketik untuk mencari manual..."
+    />
+
+    <div className="history-actions">
+      <button className="btn-pdf" type="button" onClick={exportHistoryPDF}>
+        ⬇️ DOWNLOAD PDF
+      </button>
+      <button className="btn-excel" type="button" onClick={exportHistoryExcel}>
+        ⬇️ DOWNLOAD EXCEL
+      </button>
+      <button className="btn-wa" type="button" onClick={sendHistoryToWA}>
+        📲 KIRIM KE WHATSAPP
+      </button>
+    </div>
+
     <div className="summary-grid">
       <div className="summary-card">
         <span>Total Transaksi</span>
@@ -737,12 +883,16 @@ const historySummary = {
       <div className="history-loading">Memuat history...</div>
     )}
 
-    {!historyLoading && historyRows.length === 0 && (
-      <div className="history-empty">Belum ada data untuk filter ini.</div>
+    {!historyLoading && filteredHistoryRows.length === 0 && (
+      <div className="history-empty">
+        {historySearch
+          ? "Tidak ada data yang cocok dengan pencarian."
+          : "Belum ada data untuk filter ini."}
+      </div>
     )}
 
     {!historyLoading &&
-      historyRows.map((row) => (
+      filteredHistoryRows.map((row) => (
         <div className="history-card" key={row.id}>
           <div className="history-main">
             <b>{row.input_jam || "-"}</b>
