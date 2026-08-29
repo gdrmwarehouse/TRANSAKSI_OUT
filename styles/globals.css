@@ -122,6 +122,34 @@ button:hover {
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
 }
 
+.history-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn-pdf {
+  background: linear-gradient(90deg, #dc2626, #f97316);
+  color: white;
+  box-shadow: 0 10px 22px rgba(220, 38, 38, 0.22);
+  margin-bottom: 0;
+}
+
+.btn-excel {
+  background: linear-gradient(90deg, #15803d, #22c55e);
+  color: white;
+  box-shadow: 0 10px 22px rgba(21, 128, 61, 0.22);
+  margin-bottom: 0;
+}
+
+.btn-wa {
+  background: linear-gradient(90deg, #128c7e, #25d366);
+  color: white;
+  box-shadow: 0 10px 22px rgba(37, 211, 102, 0.22);
+  margin-bottom: 0;
+}
+
 .success {
   background: linear-gradient(90deg, #38ef7d, #11998e);
   color: white;
